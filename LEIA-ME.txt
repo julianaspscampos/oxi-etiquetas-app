@@ -1,0 +1,26 @@
+# Oxi Etiquetas - Editor de Etiquetas UDI
+
+Aplicativo para Windows para criação e impressão de etiquetas UDI.
+
+## 📦 Arquivos
+
+- `OxiEtiquetas-v1.0.0-Portatil.zip` — Versão portátil (só extrair e executar `oxi-etiquetas.exe`)
+- `OxiEtiquetas-win32-x64/` — Pasta com o app extraído
+
+## 🚀 Como usar
+
+1. Extraia o ZIP em qualquer pasta do computador
+2. Execute `oxi-etiquetas.exe`
+3. O editor de etiquetas abrirá normalmente
+
+## 🔄 Como atualizar (quando houver nova versão)
+
+Ao abrir o app, ele verifica automaticamente se há atualizações no GitHub.  
+Se houver, você verá uma mensagem no topo do editor e poderá atualizar com um clique.
+
+## 🛠️ Desenvolvimento
+
+Para gerar uma nova versão:
+```bash
+npx electron-packager ./ OxiEtiquetas --platform=win32 --arch=x64 --out=dist --overwrite --icon=build/icon.png
+```

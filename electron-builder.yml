@@ -1,0 +1,29 @@
+appId: br.com.oxiindustria.etiquetas
+productName: Oxi Etiquetas
+copyright: Copyright © 2026 Oxi Indústria
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - main.js
+  - preload.js
+  - index.html
+  - build/icon.png
+  - node_modules/electron-updater/**
+
+publish:
+  provider: github
+  owner: juliana-pinto
+  repo: oxi-etiquetas-app
+  releaseType: release
+
+# Pula winCodeSign (signing) completamente
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  icon: build/icon.png
+  executableName: oxi-etiquetas

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>Oxi Etiquetas - Editor</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#e8e8e8;padding:15px}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:#666;font-size:13px;margin-bottom:15px}
+.flex{display:flex;gap:15px;align-items:flex-start}
+@media(max-width:900px){.flex{flex-direction:column}}
+
+.painel{width:300px;min-width:300px;background:#fff;border-radius:12px;padding:15px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.painel h3{font-size:13px;margin-bottom:5px;padding-bottom:3px;border-bottom:2px solid #d41400;color:#1a0a00;margin-top:10px}
+.painel h3:first-child{margin-top:0}
+.grupo{margin-bottom:5px}
+.grupo label{font-size:11px;font-weight:600;color:#444;display:block;margin-bottom:1px}
+.grupo input,.grupo select{width:100%;padding:3px 5px;border:1px solid #ddd;border-radius:4px;font-size:11px}
+.grupo input[type="range"]{width:100%;padding:0}
+.grupo .valor{float:right;font-size:11px;color:#d41400;font-weight:700}
+.grupo input[type="date"]{padding:2px 5px;font-size:11px}
+.linha2{display:flex;gap:4px}
+.linha2 .grupo{flex:1}
+.grupo-check{display:flex;align-items:center;gap:4px;margin-bottom:2px;font-size:11px}
+.grupo-check input[type="checkbox"]{width:13px;height:13px}
+.btn{background:linear-gradient(135deg,#d41400,#a81000);color:#fff;border:none;padding:6px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;width:100%;margin-top:3px}
+.btn:hover{opacity:.9}
+.btn-cinza{background:#555}
+.btn-verde{background:linear-gradient(135deg,#2e7d32,#1b5e20)}
+
+@media print{
+  @page{margin:0;padding:0}
+  body{background:#fff;padding:0;margin:0}
+  h1,.sub,.painel,.preview-label,.acoes,.historico,.container>:not(.flex),.flex>*:first-child{display:none!important}
+  .flex{display:flex!important;gap:0!important;justify-content:center}
+  .preview-area{border:none!important;border-radius:0!important;box-shadow:none!important;padding:0!important;max-width:100%!important;flex:0 1 auto!important;display:flex;justify-content:center;align-items:center;min-height:0!important}
+  #etiquetaPreview{border:none!important;margin:0!important}
+  #etiquetaPreview .handle,#etiquetaPreview .resizeHandle{display:none!important}
+  #etiquetaPreview .elem:hover{outline:none!important;background:none!important}
+  #etiquetaPreview .elem{cursor:default!important;outline:none!important;background:none!important}
+  #etiquetaPreview .elem.dragging{outline:none!important;background:none!important}
+}
+
+/* PREVIEW DRAGGABLE + RESIZABLE */
+.preview-area{flex:1;background:#fff;border-radius:12px;padding:15px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.preview-area .preview-label{font-size:11px;font-weight:600;color:#888;margin-bottom:5px;text-align:center}
+
+#etiquetaPreview{
+  background:#fff;border:2px dashed #999;position:relative;overflow:hidden;margin:0 auto;cursor:default;
+  user-select:none;-webkit-user-select:none;
+}
+#etiquetaPreview .elem{
+  position:absolute;cursor:grab;width:100%;text-align:center;left:0;min-height:5px;
+  padding:1px 0;
+}
+#etiquetaPreview .elem:hover{outline:1px dashed #d41400;background:rgba(212,20,0,0.03)}
+#etiquetaPreview .elem.dragging{cursor:grabbing;outline:2px solid #d41400;background:rgba(212,20,0,0.06);z-index:99}
+#etiquetaPreview .elem .handle{display:none;position:absolute;top:-14px;right:0;font-size:8px;color:#d41400;background:#fff;padding:0 5px;border:1px solid #d41400;border-radius:3px;white-space:nowrap;z-index:100}
+#etiquetaPreview .elem.dragging .handle{display:block}
+#etiquetaPreview .elem .resizeHandle{
+  position:absolute;bottom:0;right:0;width:14px;height:14px;
+  cursor:nw-resize;background:#d41400;border-radius:50% 0 50% 0;
+  opacity:0;transition:opacity .2s;z-index:101;
+}
+#etiquetaPreview .elem:hover .resizeHandle{opacity:.7}
+#etiquetaPreview .elem.dragging .resizeHandle{opacity:1}
+#etiquetaPreview .elem svg{display:block;margin:0 auto}
+
+.acoes{display:flex;gap:8px;margin-top:8px}
+.acoes .btn{flex:1}
+
+.historico{margin-top:10px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);max-height:180px;overflow-y:auto}
+.historico table{width:100%;font-size:10px;border-collapse:collapse}
+.historico th{background:#1a0a00;color:#fff;padding:2px 5px;text-align:left;font-size:9px;text-transform:uppercase}
+.historico td{padding:2px 5px;border-bottom:1px solid #eee}
+.historico .sel{background:#fff3e0;cursor:pointer}
+.historico .sel:hover{background:#ffe0b2}
+.historico .vazio{color:#999;text-align:center;padding:10px;font-size:12px}
+</style>
+</head>
+<body>
+
+|<h1>🏭 Editor de Etiquetas</h1>
+|<p class="sub">Oxi Indústria — Arraste para mover · Puxe o 🔴 para redimensionar</p>
+|<div id="updateStatus" style="display:none;background:#1a1a2e;color:#4cc9f0;text-align:center;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600;margin-bottom:8px"></div>|
+
+<div class="flex">
+  <div class="painel">
+    <h3>📦 Produto</h3>
+    <div class="grupo"><label>🔢 GTIN</label><input type="text" id="fixo" value="7891234567890" onchange="carregarHistorico()"></div>
+    <div class="linha2">
+      <div class="grupo"><label>📛 Nome</label><input type="text" id="nome" value="" onchange="gerar()"></div>
+      <div class="grupo"><label>🔖 Lote</label><input type="text" id="lote" value="" onchange="gerar()"></div>
+    </div>
+    <div class="linha2">
+      <div class="grupo"><label>🔢 Série</label><input type="text" id="serial" value="" onchange="gerar()"></div>
+      <div class="grupo"><label>📅 Validade</label><input type="date" id="validade" onchange="gerar()"></div>
+    </div>
+    <div class="grupo"><label>🖨️ Qtd</label><input type="number" id="qtd" value="1" min="1" max="99"></div>
+
+    <h3>📐 Tamanho da Etiqueta</h3>
+    <div class="grupo"><label>Largura (mm) <span class="valor" id="vlarg">100</span></label><input type="range" id="largura" min="50" max="120" value="100" oninput="atualizarTamanho()"></div>
+    <div class="grupo"><label>Altura (mm) <span class="valor" id="valt">60</span></label><input type="range" id="altura" min="30" max="100" value="60" oninput="atualizarTamanho()"></div>
+
+    <h3>🔤 Tamanho das Fontes</h3>
+    <div class="linha2">
+      <div class="grupo"><label>Nome <span class="valor" id="vfnome">16</span></label><input type="range" id="fonteNome" min="8" max="30" value="16" oninput="gerar()"></div>
+      <div class="grupo"><label>Barras(alt) <span class="valor" id="vbarras">80</span></label><input type="range" id="alturaBarra" min="30" max="200" value="80" oninput="gerar()"></div>
+    </div>
+    <div class="linha2">
+      <div class="grupo"><label>Código <span class="valor" id="vfcod">14</span></label><input type="range" id="fonteCod" min="8" max="30" value="14" oninput="gerar()"></div>
+      <div class="grupo"><label>Info <span class="valor" id="vfinfo">12</span></label><input type="range" id="fonteInfo" min="7" max="24" value="12" oninput="gerar()"></div>
+    </div>
+
+    <h3>🔤 Peso das Fontes</h3>
+    <div class="linha2">
+      <div class="grupo"><label>Nome</label><select id="pesoNome" onchange="gerar()"><option value="600">Semi-bold</option><option value="700" selected>Bold</option><option value="800">Extra-bold</option><option value="900">🛡️ Heavy</option></select></div>
+      <div class="grupo"><label>Código</label><select id="pesoCodigo" onchange="gerar()"><option value="700">Bold</option><option value="800">Extra-bold</option><option value="900" selected>🛡️ Heavy</option></select></div>
+      <div class="grupo"><label>Info</label><select id="pesoInfo" onchange="gerar()"><option value="600">Semi-bold</option><option value="700">Bold</option><option value="800" selected>Extra-bold</option><option value="900">🛡️ Heavy</option></select></div>
+    </div>
+    <div class="grupo"><label>Grossura das barras</label>
+      <select id="grossuraBarra" onchange="gerar()">
+        <option value="2">Fina</option><option value="3">Normal</option>
+        <option value="4" selected>🌊 Grossa</option><option value="5">🛡️ Muito grossa</option>
+      </select>
+    </div>
+
+    <h3>👁️ Mostrar</h3>
+    <div class="grupo-check"><input type="checkbox" id="exibirNome" checked onchange="gerar()"><label>Nome</label></div>
+    <div class="grupo-check"><input type="checkbox" id="exibirCodigo" checked onchange="gerar()"><label>Código numérico</label></div>
+    <div class="grupo-check"><input type="checkbox" id="exibirInfo" checked onchange="gerar()"><label>Lote/Validade</label></div>
+
+    <button class="btn" onclick="gerar()" style="margin-top:8px">🎯 Atualizar</button>
+    <button class="btn btn-verde" onclick="imprimir()">🖨️ IMPRIMIR (salva tudo)</button>
+  </div>
+
+  <div style="flex:1">
+    <div class="preview-area">
+      <div class="preview-label">📋 ARRASTE ↕ · REDIMENSIONE 🔴</div>
+      <div id="etiquetaPreview"></div>
+      <div class="acoes">
+        <button class="btn btn-cinza" onclick="centralizar()">🎯 Centralizar</button>
+        <button class="btn btn-cinza" onclick="baixarPNG()">💾 PNG</button>
+      </div>
+    </div>
+    <div class="historico">
+      <h3 style="font-size:12px;margin-bottom:5px">📋 ÚLTIMOS GTINS</h3>
+      <div id="tabelaHistorico"><div class="vazio">Nenhum histórico ainda.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== DRAG + RESIZE ==========
+let posicoes = {barras:10, nome:50, codigo:72, info:60};
+let tamanhos = {barras:80, nome:16, codigo:14, info:12};
+let pesos = {barras:4, nome:'700', codigo:'900', info:'800'};
+
+let arrastando=null, offsetY=0, arrastandoChave=null;
+let redimensionando=null, resizeStartY=0, resizeStartH=0;
+
+function iniciarDrag(e,id){
+  if(redimensionando) return;
+  const elem = document.getElementById(id);
+  if(!elem) return;
+  arrastando=id;
+  const rect=elem.getBoundingClientRect();
+  const touch=e.touches?e.touches[0]:e;
+  offsetY=touch.clientY-rect.top;
+  elem.classList.add('dragging');
+  // Mapeia ID do elemento para chave do posicoes
+  const mapa = {elemBarras:'barras',elemNome:'nome',elemCodigo:'codigo',elemInfo:'info'};
+  arrastandoChave = mapa[id] || id;
+  e.preventDefault();
+}
+
+function iniciarResize(e,id){
+  e.stopPropagation();
+  arrastando=null;
+  redimensionando=id;
+  const elem=document.getElementById(id);
+  if(!elem) return;
+  const rect=elem.getBoundingClientRect();
+  const touch=e.touches?e.touches[0]:e;
+  resizeStartY=touch.clientY;
+  resizeStartH=rect.height;
+  elem.classList.add('dragging');
+  e.preventDefault();
+}
+
+function moverDrag(e){
+  const touch=e.touches?e.touches[0]:e;
+  if(arrastando){
+    const elem=document.getElementById(arrastando);
+    if(!elem) return;
+    const container=document.getElementById('etiquetaPreview');
+    const cRect=container.getBoundingClientRect();
+    let y=touch.clientY-cRect.top-offsetY;
+    y=Math.max(0,Math.min(y,container.offsetHeight-elem.offsetHeight));
+    elem.style.top=y+'px';
+    if(arrastandoChave) posicoes[arrastandoChave]=y;
+    e.preventDefault();
+    return;
+  }
+  if(redimensionando){
+    const elem=document.getElementById(redimensionando);
+    if(!elem) return;
+    let delta=touch.clientY-resizeStartY;
+    // Mapeia o elemento para o controle de tamanho
+    if(redimensionando=='elemBarras'){
+      let nova=Math.max(30,Math.min(200,resizeStartH+delta));
+      document.getElementById('alturaBarra').value=nova;
+      document.getElementById('vbarras').textContent=nova;
+      tamanhos.barras=nova;
+      // Regenera o SVG com a nova altura
+      const svg = document.getElementById('codigoBarra');
+      if(svg) svg.style.height=nova+'px';
+    }else if(redimensionando=='elemNome'){
+      let nova=Math.max(8,Math.min(40,resizeStartH+delta));
+      elem.style.fontSize=nova+'px';
+      document.getElementById('fonteNome').value=nova;
+      document.getElementById('vfnome').textContent=nova;
+      tamanhos.nome=nova;
+    }else if(redimensionando=='elemCodigo'){
+      let nova=Math.max(8,Math.min(30,resizeStartH+delta));
+      elem.style.fontSize=nova+'px';
+      document.getElementById('fonteCod').value=nova;
+      document.getElementById('vfcod').textContent=nova;
+      tamanhos.codigo=nova;
+    }else if(redimensionando=='elemInfo'){
+      let nova=Math.max(7,Math.min(24,resizeStartH+delta));
+      elem.style.fontSize=nova+'px';
+      document.getElementById('fonteInfo').value=nova;
+      document.getElementById('vfinfo').textContent=nova;
+      tamanhos.info=nova;
+    }
+    e.preventDefault();
+  }
+}
+
+function pararDrag(e){
+  if(arrastando){document.getElementById(arrastando)?.classList.remove('dragging');arrastando=null;}
+  if(redimensionando){document.getElementById(redimensionando)?.classList.remove('dragging');redimensionando=null;}
+  e.preventDefault();
+}
+
+document.addEventListener('mousemove',moverDrag);
+document.addEventListener('mouseup',pararDrag);
+document.addEventListener('touchmove',moverDrag,{passive:false});
+document.addEventListener('touchend',pararDrag);
+
+function centralizar(){
+  const p=document.getElementById('etiquetaPreview');
+  if(!p) return;
+  const h=p.offsetHeight;
+  posicoes={barras:10,nome:Math.round(h*0.4),codigo:Math.round(h*0.72),info:Math.round(h*0.55)};
+  gerar();
+}
+
+// ========== HISTÓRICO ==========
+function atualizarTamanho(){
+  document.getElementById('vlarg').textContent=document.getElementById('largura').value;
+  document.getElementById('valt').textContent=document.getElementById('altura').value;
+  gerar();
+}
+
+function salvarHistorico(){
+  const gtin=document.getElementById('fixo').value.trim();if(!gtin)return;
+  const h=JSON.parse(localStorage.getItem('oxi_historico_gtin')||'{}');
+  let serial=document.getElementById('serial').value;
+  let nv=serial?String(parseInt(serial)+1).padStart(serial.length,'0'):'';
+  h[gtin]={nome:document.getElementById('nome').value,lote:document.getElementById('lote').value,serial:serial,proximoSerial:nv,validade:document.getElementById('validade').value,largura:document.getElementById('largura').value,altura:document.getElementById('altura').value,fonteNome:document.getElementById('fonteNome').value,alturaBarra:document.getElementById('alturaBarra').value,fonteCodigo:document.getElementById('fonteCod').value,fonteInfo:document.getElementById('fonteInfo').value,pesoNome:document.getElementById('pesoNome').value,pesoCodigo:document.getElementById('pesoCodigo').value,pesoInfo:document.getElementById('pesoInfo').value,grossuraBarra:document.getElementById('grossuraBarra').value,exibirNome:document.getElementById('exibirNome').checked,exibirCodigo:document.getElementById('exibirCodigo').checked,exibirInfo:document.getElementById('exibirInfo').checked,posicoes:JSON.parse(JSON.stringify(posicoes)),tamanhos:JSON.parse(JSON.stringify(tamanhos)),ultimaVez:new Date().toLocaleString('pt-BR')};
+  localStorage.setItem('oxi_historico_gtin',JSON.stringify(h));atualizarTabelaHistorico();
+}
+
+function carregarHistorico(){
+  const gtin=document.getElementById('fixo').value.trim();if(!gtin)return;
+  const h=JSON.parse(localStorage.getItem('oxi_historico_gtin')||'{}');const d=h[gtin];
+  if(d){
+    document.getElementById('nome').value=d.nome||'';document.getElementById('lote').value=d.lote||'';
+    document.getElementById('serial').value=d.proximoSerial||d.serial||'';
+    document.getElementById('validade').value=d.validade||'';
+    if(d.largura)document.getElementById('largura').value=d.largura;
+    if(d.altura)document.getElementById('altura').value=d.altura;
+    if(d.fonteNome)document.getElementById('fonteNome').value=d.fonteNome;
+    if(d.alturaBarra)document.getElementById('alturaBarra').value=d.alturaBarra;
+    if(d.fonteCodigo)document.getElementById('fonteCod').value=d.fonteCodigo;
+    if(d.fonteInfo)document.getElementById('fonteInfo').value=d.fonteInfo;
+    if(d.pesoNome)document.getElementById('pesoNome').value=d.pesoNome;
+    if(d.pesoCodigo)document.getElementById('pesoCodigo').value=d.pesoCodigo;
+    if(d.pesoInfo)document.getElementById('pesoInfo').value=d.pesoInfo;
+    if(d.grossuraBarra)document.getElementById('grossuraBarra').value=d.grossuraBarra;
+    document.getElementById('exibirNome').checked=d.exibirNome!==false;
+    document.getElementById('exibirCodigo').checked=d.exibirCodigo!==false;
+    document.getElementById('exibirInfo').checked=d.exibirInfo!==false;
+    if(d.posicoes)posicoes=JSON.parse(JSON.stringify(d.posicoes));
+    if(d.tamanhos)tamanhos=JSON.parse(JSON.stringify(d.tamanhos));
+    atualizarTamanho();
+  }else{
+    document.getElementById('nome').value='';document.getElementById('lote').value='';
+    document.getElementById('serial').value='';document.getElementById('validade').value='';
+  }
+  gerar();
+}
+
+function atualizarTabelaHistorico(){
+  const h=JSON.parse(localStorage.getItem('oxi_historico_gtin')||'{}');const c=document.getElementById('tabelaHistorico');
+  const ch=Object.keys(h);
+  if(!ch.length){c.innerHTML='<div class="vazio">Nenhum histórico ainda.</div>';return}
+  ch.sort((a,b)=>{const na=(h[a].nome||'').toLowerCase();const nb=(h[b].nome||'').toLowerCase();if(na<nb)return -1;if(na>nb)return 1;return 0});
+  let t='<table><tr><th>GTIN</th><th>Produto</th><th>Lote</th><th>Série</th><th>Próx.Série</th><th></th></tr>';
+  for(let g of ch.slice(0,20)){const d=h[g];t+=`<tr class="sel" onclick="selecionarGTIN('${g}')"><td>${g}</td><td>${d.nome||'-'}</td><td>${d.lote||'-'}</td><td>${d.serial||'-'}</td><td style="color:#d41400;font-weight:bold">${d.proximoSerial||'-'}</td><td style="text-align:center;padding:0"><span onclick="event.stopPropagation();excluirGTIN('${g}')" style="cursor:pointer;color:#d41400;font-weight:bold;font-size:13px;padding:0 6px" title="Excluir esta etiqueta">✕</span></td></tr>`;}
+  t+='</table>';c.innerHTML=t;
+}
+
+function selecionarGTIN(g){document.getElementById('fixo').value=g;carregarHistorico()}
+
+function excluirGTIN(g){
+  if(!confirm(`Excluir etiqueta ${g} do histórico?`))return;
+  const h=JSON.parse(localStorage.getItem('oxi_historico_gtin')||'{}');
+  delete h[g];
+  localStorage.setItem('oxi_historico_gtin',JSON.stringify(h));
+  atualizarTabelaHistorico();
+  // Se a etiqueta excluída era a atual, limpa os campos
+  if(document.getElementById('fixo').value===g){
+    document.getElementById('nome').value='';
+    document.getElementById('lote').value='';
+    document.getElementById('serial').value='';
+    document.getElementById('validade').value='';
+  }
+}
+
+let ultimoSvg='';
+
+// ========== GERAR ==========
+function gerar(){
+  const fixo=document.getElementById('fixo').value;const nome=document.getElementById('nome').value||'Produto';
+  const lote=document.getElementById('lote').value||'';const serial=document.getElementById('serial').value||'';
+  const val=document.getElementById('validade').value;
+  const larg=parseInt(document.getElementById('largura').value);const alt=parseInt(document.getElementById('altura').value);
+  const fnome=parseInt(document.getElementById('fonteNome').value)||tamanhos.nome;
+  const faltBarra=parseInt(document.getElementById('alturaBarra').value)||tamanhos.barras;
+  const fcod=parseInt(document.getElementById('fonteCod').value)||tamanhos.codigo;
+  const finfo=parseInt(document.getElementById('fonteInfo').value)||tamanhos.info;
+  const pNome=document.getElementById('pesoNome').value;const pCod=document.getElementById('pesoCodigo').value;
+  const pInfo=document.getElementById('pesoInfo').value;const gross=parseInt(document.getElementById('grossuraBarra').value)||pesos.barras;
+  const exNome=document.getElementById('exibirNome').checked;const exCod=document.getElementById('exibirCodigo').checked;
+  const exInfo=document.getElementById('exibirInfo').checked;
+
+  document.getElementById('vfnome').textContent=fnome;document.getElementById('vbarras').textContent=faltBarra;
+  document.getElementById('vfcod').textContent=fcod;document.getElementById('vfinfo').textContent=finfo;
+  tamanhos.barras=faltBarra;tamanhos.nome=fnome;tamanhos.codigo=fcod;tamanhos.info=finfo;
+
+  let codigo=fixo;if(lote)codigo+='-'+lote;if(serial)codigo+='-'+serial;
+  if(val){let d=val.split('-');codigo+='-'+d[0].slice(2)+d[1]+d[2];}
+
+  const preview=document.getElementById('etiquetaPreview');
+  const pw=larg*4;const ph=alt*4;
+  preview.style.width=pw+'px';preview.style.height=ph+'px';
+
+  let html='';
+  // Código de barras
+  html+=`<div class="elem" id="elemBarras" style="top:${posicoes.barras||10}px;height:${faltBarra+5}px" onmousedown="iniciarDrag(event,'elemBarras')" ontouchstart="iniciarDrag(event,'elemBarras')">
+    <span class="handle">↕ ⇱ ARRASTE / REDIMENSIONE</span>
+    <svg id="codigoBarra" style="height:${faltBarra}px"></svg>
+    <div class="resizeHandle" onmousedown="iniciarResize(event,'elemBarras')" ontouchstart="iniciarResize(event,'elemBarras')" title="Arraste para redimensionar"></div>
+  </div>`;
+  // Nome
+  if(exNome)html+=`<div class="elem" id="elemNome" style="top:${posicoes.nome||50}px;font-size:${fnome}px;font-weight:${pNome};padding:2px 0" onmousedown="iniciarDrag(event,'elemNome')" ontouchstart="iniciarDrag(event,'elemNome')">
+    <span class="handle">↕ ⇱ ARRASTE / REDIMENSIONE</span>${nome}
+    <div class="resizeHandle" onmousedown="iniciarResize(event,'elemNome')" ontouchstart="iniciarResize(event,'elemNome')" title="Arraste para redimensionar"></div>
+  </div>`;
+  // Info
+  if(exInfo){
+    let info='';if(lote)info+=`Lote: ${lote}`;if(serial)info+=` | S/N: ${serial}`;if(val)info+=` | Val: ${val}`;
+    html+=`<div class="elem" id="elemInfo" style="top:${posicoes.info||60}px;font-size:${finfo}px;font-weight:${pInfo};padding:2px 0" onmousedown="iniciarDrag(event,'elemInfo')" ontouchstart="iniciarDrag(event,'elemInfo')">
+      <span class="handle">↕ ⇱ ARRASTE / REDIMENSIONE</span>${info}
+      <div class="resizeHandle" onmousedown="iniciarResize(event,'elemInfo')" ontouchstart="iniciarResize(event,'elemInfo')" title="Arraste para redimensionar"></div>
+    </div>`;
+  }
+  // Código
+  if(exCod)html+=`<div class="elem" id="elemCodigo" style="top:${posicoes.codigo||72}px;font-size:${fcod}px;font-weight:${pCod};padding:2px 0;letter-spacing:0.5px" onmousedown="iniciarDrag(event,'elemCodigo')" ontouchstart="iniciarDrag(event,'elemCodigo')">
+    <span class="handle">↕ ⇱ ARRASTE / REDIMENSIONE</span>${codigo}
+    <div class="resizeHandle" onmousedown="iniciarResize(event,'elemCodigo')" ontouchstart="iniciarResize(event,'elemCodigo')" title="Arraste para redimensionar"></div>
+  </div>`;
+
+  preview.innerHTML=html;
+  try{
+    JsBarcode('#codigoBarra',codigo,{format:'CODE128',width:gross,height:faltBarra,displayValue:false,margin:3,background:'#ffffff',lineColor:'#000000'});
+    ultimoSvg=document.querySelector('#elemBarras svg')?.outerHTML||'';
+  }catch(e){preview.innerHTML=`<div style="color:red;padding:20px">Erro: ${e.message}</div>`;}
+}
+
+// ========== IMPRIMIR (V2 - CORRIGIDO) ==========
+function imprimir(){
+  salvarHistorico();
+  const qtd=parseInt(document.getElementById('qtd').value)||1;
+  const larg=parseInt(document.getElementById('largura').value);
+  const alt=parseInt(document.getElementById('altura').value);
+  const fnome=parseInt(document.getElementById('fonteNome').value);
+  const fcod=parseInt(document.getElementById('fonteCod').value);
+  const finfo=parseInt(document.getElementById('fonteInfo').value);
+  const faltBarra=parseInt(document.getElementById('alturaBarra').value);
+  const pNome=document.getElementById('pesoNome').value;
+  const pCod=document.getElementById('pesoCodigo').value;
+  const pInfo=document.getElementById('pesoInfo').value;
+  const gross=parseInt(document.getElementById('grossuraBarra').value);
+  const exNome=document.getElementById('exibirNome').checked;
+  const exCod=document.getElementById('exibirCodigo').checked;
+  const exInfo=document.getElementById('exibirInfo').checked;
+  const fixo=document.getElementById('fixo').value;
+  const nome=document.getElementById('nome').value||'Produto';
+  const lote=document.getElementById('lote').value||'';
+  const serial=document.getElementById('serial').value||'';
+  const val=document.getElementById('validade').value;
+
+  let codigo=fixo;if(lote)codigo+='-'+lote;if(serial)codigo+='-'+serial;
+  if(val){let d=val.split('-');codigo+='-'+d[0].slice(2)+d[1]+d[2];}
+  let infoTxt='';if(lote)infoTxt+=`Lote: ${lote}`;if(serial)infoTxt+=` | S/N: ${serial}`;if(val)infoTxt+=` | Val: ${val}`;
+
+  // CAPTURA A PROPORÇÃO REAL DO SVG DO CÓDIGO DE BARRAS
+  const svgElem = document.querySelector('#elemBarras svg');
+  let barW = 300, barH = 80;
+  if (svgElem) {
+    try {
+      const bbox = svgElem.getBBox();
+      if (bbox && bbox.width > 0 && bbox.height > 0) { barW = bbox.width; barH = bbox.height; }
+    } catch(e) {}
+  }
+  // Largura máxima do código na impressão (mm) — usa 90% da etiqueta
+  const maxPrintW = larg * 0.90;
+  const ratio = barW / barH;
+  // Calcula largura e altura reais mantendo a proporção exata da tela
+  let printBarW = maxPrintW;
+  let printBarH = maxPrintW / ratio;
+  // Se ficar muito alto, limita pela altura disponível
+  if (printBarH > alt * 0.45) {
+    printBarH = alt * 0.45;
+    printBarW = printBarH * ratio;
+  }
+
+  // Converte posições px para % (já funciona corretamente)
+  const totalH = alt*4;
+  const pbPct = ((posicoes.barras||10)/totalH*100).toFixed(1);
+  const pnPct = ((posicoes.nome||50)/totalH*100).toFixed(1);
+  const piPct = ((posicoes.info||60)/totalH*100).toFixed(1);
+  const pcPct = ((posicoes.codigo||72)/totalH*100).toFixed(1);
+
+  // Fator de escala: quantos mm cada pixel da tela representa
+  const escala = alt / totalH; // = 0.25
+
+  let html=`<html><head><style>
+    @page{margin:0;padding:0;width:${larg}mm;height:${alt}mm}
+    body{margin:0;padding:0;font-family:'Segoe UI','Arial',sans-serif}
+    .etiqueta{width:${larg}mm;height:${alt}mm;position:relative;page-break-after:always;overflow:hidden;background:#fff}
+    .eb{position:absolute;top:${pbPct}%;left:0;width:100%;text-align:center}
+    .eb svg{display:block;margin:0 auto;width:${printBarW.toFixed(1)}mm;height:${printBarH.toFixed(1)}mm}
+    .en{position:absolute;top:${pnPct}%;left:0;width:100%;text-align:center;font-size:${(fnome*escala).toFixed(1)}mm;font-weight:${pNome}}
+    .ei{position:absolute;top:${piPct}%;left:0;width:100%;text-align:center;font-size:${(finfo*escala).toFixed(1)}mm;font-weight:${pInfo}}
+    .ec{position:absolute;top:${pcPct}%;left:0;width:100%;text-align:center;font-size:${(fcod*escala).toFixed(1)}mm;font-weight:${pCod};letter-spacing:0.5px}
+  </style></head><body>`;
+
+  for(let i=0;i<qtd;i++){
+    html+=`<div class="etiqueta">`;
+    html+=`<div class="eb">${ultimoSvg||''}</div>`;
+    if(exNome)html+=`<div class="en">${nome}</div>`;
+    if(exInfo&&infoTxt)html+=`<div class="ei">${infoTxt}</div>`;
+    if(exCod)html+=`<div class="ec">${codigo}</div>`;
+    html+=`</div>`;
+  }
+  html+='</body></html>';
+  const j=window.open('','_blank','width=400,height=600');
+  j.document.write(html);j.document.close();
+  setTimeout(()=>{j.focus();j.print()},500);
+}
+
+function baixarPNG(){const s=document.querySelector('#codigoBarra');if(!s)return;const d=new XMLSerializer().serializeToString(s);const c=document.createElement('canvas');c.width=400;c.height=200;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,400,200);const i=new Image();i.onload=()=>{x.drawImage(i,20,10,360,160);const a=document.createElement('a');a.download=`barras_${Date.now()}.png`;a.href=c.toDataURL('image/png');a.click()};i.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(d)));}
+
+window.onload=function(){
+  atualizarTabelaHistorico();
+  if(document.getElementById('fixo').value)carregarHistorico();else gerar();
+  // Electron auto-update status
+  if(window.electronAPI){
+    window.electronAPI.onUpdateStatus(function(status){
+      const el=document.getElementById('updateStatus');
+      if(status){el.style.display='block';el.textContent=status;}
+      else{el.style.display='none';}
+    });
+  }
+};
+</script>
+</body>
+</html>
