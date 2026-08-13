@@ -80,6 +80,22 @@ h1{font-size:20px;margin-bottom:4px}
 .historico .sel:hover{background:#ffe0b2}
 .historico .vazio{color:#999;text-align:center;padding:10px;font-size:12px}
 </style>
+<!-- MODAL PRINT PREVIEW -->
+<style>
+#previewModal{display:none;position:fixed;z-index:9999;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center}
+#previewModal.show{display:flex}
+#previewContent{background:#fff;border-radius:12px;padding:20px;max-width:90vw;max-height:90vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center}
+#previewContent .preview-label{font-size:13px;font-weight:600;color:#888;margin-bottom:10px}
+#previewContent .modal-actions{display:flex;gap:10px;justify-content:center;margin-top:15px}
+#previewContent .modal-actions button{min-width:120px}
+#previewRender{margin:0 auto}
+#previewRender .etiqueta{position:relative;overflow:hidden;background:#fff;margin:0 auto}
+#previewRender .eb{position:absolute;left:0;width:100%;text-align:center}
+#previewRender .eb svg{display:block;margin:0 auto}
+#previewRender .en{position:absolute;left:0;width:100%;text-align:center}
+#previewRender .ei{position:absolute;left:0;width:100%;text-align:center}
+#previewRender .ec{position:absolute;left:0;width:100%;text-align:center;letter-spacing:0.5px}
+</style>
 </head>
 <body>
 
@@ -133,7 +149,7 @@ h1{font-size:20px;margin-bottom:4px}
     <div class="grupo-check"><input type="checkbox" id="exibirCodigo" checked onchange="gerar()"><label>Código numérico</label></div>
     <div class="grupo-check"><input type="checkbox" id="exibirInfo" checked onchange="gerar()"><label>Lote/Validade</label></div>
 
-    <button class="btn" onclick="gerar()" style="margin-top:8px">🎯 Atualizar</button>
+    <button class="btn" onclick="mostrarPreview()" style="margin-top:8px">🎯 Atualizar</button>
     <button class="btn btn-verde" onclick="imprimir()">🖨️ IMPRIMIR (salva tudo)</button>
   </div>
 
@@ -153,7 +169,68 @@ h1{font-size:20px;margin-bottom:4px}
   </div>
 </div>
 
+<!-- MODAL PRINT PREVIEW -->
+<div id="previewModal">
+  <div id="previewContent">
+    <div class="preview-label">📋 PRÉVIA DA ETIQUETA</div>
+    <div id="previewRender"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cinza" onclick="fecharPreview()" style="flex:0">✕ Fechar</button>
+      <button class="btn btn-verde" onclick="imprimir()">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// ========== PRINT PREVIEW ==========
+function mostrarPreview(){
+  gerar(); // Atualiza a prévia principal primeiro
+  const larg=parseInt(document.getElementById('largura').value);
+  const alt=parseInt(document.getElementById('altura').value);
+  const fnome=parseInt(document.getElementById('fonteNome').value);
+  const fcod=parseInt(document.getElementById('fonteCod').value);
+  const finfo=parseInt(document.getElementById('fonteInfo').value);
+  const faltBarra=parseInt(document.getElementById('alturaBarra').value);
+  const pNome=document.getElementById('pesoNome').value;
+  const pCod=document.getElementById('pesoCodigo').value;
+  const pInfo=document.getElementById('pesoInfo').value;
+  const gross=parseInt(document.getElementById('grossuraBarra').value);
+  const exNome=document.getElementById('exibirNome').checked;
+  const exCod=document.getElementById('exibirCodigo').checked;
+  const exInfo=document.getElementById('exibirInfo').checked;
+  const fixo=document.getElementById('fixo').value;
+  const nome=document.getElementById('nome').value||'Produto';
+  const lote=document.getElementById('lote').value||'';
+  const serial=document.getElementById('serial').value||'';
+  const val=document.getElementById('validade').value;
+  let codigo=fixo;if(lote)codigo+='-'+lote;if(serial)codigo+='-'+serial;
+  if(val){let d=val.split('-');codigo+='-'+d[0].slice(2)+d[1]+d[2];}
+  let infoTxt='';if(lote)infoTxt+=`Lote: ${lote}`;if(serial)infoTxt+=` | S/N: ${serial}`;if(val)infoTxt+=` | Val: ${val}`;
+  const svgElem=document.querySelector('#elemBarras svg');
+  let barW=300,barH=80;
+  if(svgElem){try{const bbox=svgElem.getBBox();if(bbox&&bbox.width>0&&bbox.height>0){barW=bbox.width;barH=bbox.height;}}catch(e){}}
+  const maxPrintW=larg*0.90;const ratio=barW/barH;
+  let printBarW=maxPrintW;let printBarH=maxPrintW/ratio;
+  if(printBarH>alt*0.45){printBarH=alt*0.45;printBarW=printBarH*ratio;}
+  const totalH=alt*4;const escala=alt/totalH;
+  const pbPct=((posicoes.barras||10)/totalH*100).toFixed(1);
+  const pnPct=((posicoes.nome||50)/totalH*100).toFixed(1);
+  const piPct=((posicoes.info||60)/totalH*100).toFixed(1);
+  const pcPct=((posicoes.codigo||72)/totalH*100).toFixed(1);
+  const fatorTela=3; // escala pra exibir na tela (mm * 3 ≈ px)
+  let previewHtml=`<div class="etiqueta" style="width:${larg*fatorTela}px;height:${alt*fatorTela}px">`;
+  previewHtml+=`<div class="eb" style="top:${pbPct}%"><svg style="height:${printBarH*fatorTela}px;width:${printBarW*fatorTela}px">${document.querySelector('#codigoBarra')?.innerHTML||''}</svg></div>`;
+  if(exNome)previewHtml+=`<div class="en" style="top:${pnPct}%;font-size:${fnome*escala*fatorTela}px;font-weight:${pNome}">${nome}</div>`;
+  if(exInfo&&infoTxt)previewHtml+=`<div class="ei" style="top:${piPct}%;font-size:${finfo*escala*fatorTela}px;font-weight:${pInfo}">${infoTxt}</div>`;
+  if(exCod)previewHtml+=`<div class="ec" style="top:${pcPct}%;font-size:${fcod*escala*fatorTela}px;font-weight:${pCod}">${codigo}</div>`;
+  previewHtml+=`</div>`;
+  document.getElementById('previewRender').innerHTML=previewHtml;
+  document.getElementById('previewModal').classList.add('show');
+}
+function fecharPreview(){document.getElementById('previewModal').classList.remove('show');}
+// Clique fora do modal fecha
+document.addEventListener('click',function(e){const m=document.getElementById('previewModal');if(e.target===m)m.classList.remove('show');});
+
 // ========== DRAG + RESIZE ==========
 let posicoes = {barras:10, nome:50, codigo:72, info:60};
 let tamanhos = {barras:80, nome:16, codigo:14, info:12};
@@ -310,7 +387,7 @@ function atualizarTabelaHistorico(){
   const h=JSON.parse(localStorage.getItem('oxi_historico_gtin')||'{}');const c=document.getElementById('tabelaHistorico');
   const ch=Object.keys(h);
   if(!ch.length){c.innerHTML='<div class="vazio">Nenhum histórico ainda.</div>';return}
-  ch.sort((a,b)=>{const na=(h[a].nome||'').toLowerCase();const nb=(h[b].nome||'').toLowerCase();if(na<nb)return -1;if(na>nb)return 1;return 0});
+  ch.sort((a,b)=>parseInt(a)-parseInt(b));
   let t='<table><tr><th>GTIN</th><th>Produto</th><th>Lote</th><th>Série</th><th>Próx.Série</th><th></th></tr>';
   for(let g of ch.slice(0,20)){const d=h[g];t+=`<tr class="sel" onclick="selecionarGTIN('${g}')"><td>${g}</td><td>${d.nome||'-'}</td><td>${d.lote||'-'}</td><td>${d.serial||'-'}</td><td style="color:#d41400;font-weight:bold">${d.proximoSerial||'-'}</td><td style="text-align:center;padding:0"><span onclick="event.stopPropagation();excluirGTIN('${g}')" style="cursor:pointer;color:#d41400;font-weight:bold;font-size:13px;padding:0 6px" title="Excluir esta etiqueta">✕</span></td></tr>`;}
   t+='</table>';c.innerHTML=t;
@@ -453,9 +530,10 @@ function imprimir(){
   const escala = alt / totalH; // = 0.25
 
   let html=`<html><head><style>
-    @page{margin:0;padding:0;width:${larg}mm;height:${alt}mm}
+    @page{size:${larg}mm ${alt}mm;margin:0}
     body{margin:0;padding:0;font-family:'Segoe UI','Arial',sans-serif}
-    .etiqueta{width:${larg}mm;height:${alt}mm;position:relative;page-break-after:always;overflow:hidden;background:#fff}
+    .etiqueta{width:${larg}mm;height:${alt}mm;position:relative;overflow:hidden;background:#fff}
+    .etiqueta:not(:last-child){page-break-after:always}
     .eb{position:absolute;top:${pbPct}%;left:0;width:100%;text-align:center}
     .eb svg{display:block;margin:0 auto;width:${printBarW.toFixed(1)}mm;height:${printBarH.toFixed(1)}mm}
     .en{position:absolute;top:${pnPct}%;left:0;width:100%;text-align:center;font-size:${(fnome*escala).toFixed(1)}mm;font-weight:${pNome}}
