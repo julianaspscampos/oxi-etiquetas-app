@@ -15,7 +15,7 @@ files:
 
 publish:
   provider: github
-  owner: juliana-pinto
+  owner: julianaspscampos
   repo: oxi-etiquetas-app
   releaseType: release
 
