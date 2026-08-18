@@ -545,27 +545,26 @@ function imprimir(){
 
   const seqSerial=document.getElementById('seqSerial').checked;
 
-  for(let i=0;i<qtd;i++){
-    let s=serial, c=codigo, t=infoTxt, svgHtml=ultimoSvg;
-    if(seqSerial&&serial){
-      const num=parseInt(serial)+i;
-      s=String(num).padStart(serial.length,'0');
-      c=fixo;if(lote)c+='-'+lote;if(s)c+='-'+s;
-      if(val){let d=val.split('-');c+='-'+d[0].slice(2)+d[1]+d[2];}
-      t='';if(lote)t+=`Lote: ${lote}`;if(s)t+=` | S/N: ${s}`;if(val)t+=` | Val: ${val}`;
-      // Gera SVG do código de barras com o serial incrementado
-      const d=document.createElement('div');d.innerHTML=`<svg id="_tmpBar_${i}"></svg>`;
-      document.body.appendChild(d);
-      try{JsBarcode(`#_tmpBar_${i}`,c,{format:'CODE128',width:gross,height:faltBarra,displayValue:false,margin:3,background:'#ffffff',lineColor:'#000000'});svgHtml=d.querySelector('svg').outerHTML;}catch(e){}
-      document.body.removeChild(d);
+    for(let i=0;i<qtd;i++){
+      let s=serial, c=codigo, t=infoTxt, svgHtml=ultimoSvg;
+      if(seqSerial&&serial){
+        const num=parseInt(serial)+i;
+        s=String(num).padStart(serial.length,'0');
+        c=fixo;if(lote)c+='-'+lote;if(s)c+='-'+s;
+        if(val){let d=val.split('-');c+='-'+d[0].slice(2)+d[1]+d[2];}
+        t='';if(lote)t+=`Lote: ${lote}`;if(s)t+=` | S/N: ${s}`;if(val)t+=` | Val: ${val}`;
+        const d=document.createElement('div');d.innerHTML='<svg id="_tBar_'+i+'"></svg>';
+        document.body.appendChild(d);
+        try{JsBarcode('#_tBar_'+i,c,{format:'CODE128',width:gross,height:faltBarra,displayValue:false,margin:3,background:'#ffffff',lineColor:'#000000'});svgHtml=d.querySelector('svg').outerHTML;}catch(e){}
+        document.body.removeChild(d);
+      }
+      html+=`<div class="etiqueta">`;
+      html+=`<div class="eb">${svgHtml}</div>`;
+      if(exNome)html+=`<div class="en">${nome}</div>`;
+      if(exInfo&&t)html+=`<div class="ei">${t}</div>`;
+      if(exCod)html+=`<div class="ec">${c}</div>`;
+      html+=`</div>`;
     }
-    html+=`<div class="etiqueta">`;
-    html+=`<div class="eb">${svgHtml}</div>`;
-    if(exNome)html+=`<div class="en">${nome}</div>`;
-    if(exInfo&&t)html+=`<div class="ei">${t}</div>`;
-    if(exCod)html+=`<div class="ec">${c}</div>`;
-    html+=`</div>`;
-  }
   html+='</body></html>';
   const j=window.open('','_blank','width=400,height=600');
   j.document.write(html);j.document.close();
