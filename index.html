@@ -115,6 +115,7 @@ h1{font-size:20px;margin-bottom:4px}
       <div class="grupo"><label>🔢 Série</label><input type="text" id="serial" value="" onchange="gerar()"></div>
       <div class="grupo"><label>📅 Validade</label><input type="date" id="validade" onchange="gerar()"></div>
     </div>
+    <div class="grupo-check"><input type="checkbox" id="seqSerial"><label for="seqSerial">🔢 <strong>Imprimir sequencial</strong> (incrementa série a cada cópia)</label></div>
     <div class="grupo"><label>🖨️ Qtd</label><input type="number" id="qtd" value="1" min="1" max="99"></div>
 
     <h3>📐 Tamanho da Etiqueta</h3>
@@ -349,7 +350,7 @@ function salvarHistorico(){
   const h=JSON.parse(localStorage.getItem('oxi_historico_gtin')||'{}');
   let serial=document.getElementById('serial').value;
   let nv=serial?String(parseInt(serial)+1).padStart(serial.length,'0'):'';
-  h[gtin]={nome:document.getElementById('nome').value,lote:document.getElementById('lote').value,serial:serial,proximoSerial:nv,validade:document.getElementById('validade').value,largura:document.getElementById('largura').value,altura:document.getElementById('altura').value,fonteNome:document.getElementById('fonteNome').value,alturaBarra:document.getElementById('alturaBarra').value,fonteCodigo:document.getElementById('fonteCod').value,fonteInfo:document.getElementById('fonteInfo').value,pesoNome:document.getElementById('pesoNome').value,pesoCodigo:document.getElementById('pesoCodigo').value,pesoInfo:document.getElementById('pesoInfo').value,grossuraBarra:document.getElementById('grossuraBarra').value,exibirNome:document.getElementById('exibirNome').checked,exibirCodigo:document.getElementById('exibirCodigo').checked,exibirInfo:document.getElementById('exibirInfo').checked,posicoes:JSON.parse(JSON.stringify(posicoes)),tamanhos:JSON.parse(JSON.stringify(tamanhos)),ultimaVez:new Date().toLocaleString('pt-BR')};
+  h[gtin]={nome:document.getElementById('nome').value,lote:document.getElementById('lote').value,serial:serial,proximoSerial:nv,validade:document.getElementById('validade').value,largura:document.getElementById('largura').value,altura:document.getElementById('altura').value,fonteNome:document.getElementById('fonteNome').value,alturaBarra:document.getElementById('alturaBarra').value,fonteCodigo:document.getElementById('fonteCod').value,fonteInfo:document.getElementById('fonteInfo').value,pesoNome:document.getElementById('pesoNome').value,pesoCodigo:document.getElementById('pesoCodigo').value,pesoInfo:document.getElementById('pesoInfo').value,grossuraBarra:document.getElementById('grossuraBarra').value,exibirNome:document.getElementById('exibirNome').checked,exibirCodigo:document.getElementById('exibirCodigo').checked,exibirInfo:document.getElementById('exibirInfo').checked,seqSerial:document.getElementById('seqSerial').checked,posicoes:JSON.parse(JSON.stringify(posicoes)),tamanhos:JSON.parse(JSON.stringify(tamanhos)),ultimaVez:new Date().toLocaleString('pt-BR')};
   localStorage.setItem('oxi_historico_gtin',JSON.stringify(h));atualizarTabelaHistorico();
 }
 
@@ -373,6 +374,7 @@ function carregarHistorico(){
     document.getElementById('exibirNome').checked=d.exibirNome!==false;
     document.getElementById('exibirCodigo').checked=d.exibirCodigo!==false;
     document.getElementById('exibirInfo').checked=d.exibirInfo!==false;
+    document.getElementById('seqSerial').checked=d.seqSerial===true;
     if(d.posicoes)posicoes=JSON.parse(JSON.stringify(d.posicoes));
     if(d.tamanhos)tamanhos=JSON.parse(JSON.stringify(d.tamanhos));
     atualizarTamanho();
@@ -541,17 +543,38 @@ function imprimir(){
     .ec{position:absolute;top:${pcPct}%;left:0;width:100%;text-align:center;font-size:${(fcod*escala).toFixed(1)}mm;font-weight:${pCod};letter-spacing:0.5px}
   </style></head><body>`;
 
+  const seqSerial=document.getElementById('seqSerial').checked;
+
   for(let i=0;i<qtd;i++){
+    let s=serial, c=codigo, t=infoTxt, svgHtml=ultimoSvg;
+    if(seqSerial&&serial){
+      const num=parseInt(serial)+i;
+      s=String(num).padStart(serial.length,'0');
+      c=fixo;if(lote)c+='-'+lote;if(s)c+='-'+s;
+      if(val){let d=val.split('-');c+='-'+d[0].slice(2)+d[1]+d[2];}
+      t='';if(lote)t+=`Lote: ${lote}`;if(s)t+=` | S/N: ${s}`;if(val)t+=` | Val: ${val}`;
+      // Gera SVG do código de barras com o serial incrementado
+      const d=document.createElement('div');d.innerHTML=`<svg id="_tmpBar_${i}"></svg>`;
+      document.body.appendChild(d);
+      try{JsBarcode(`#_tmpBar_${i}`,c,{format:'CODE128',width:gross,height:faltBarra,displayValue:false,margin:3,background:'#ffffff',lineColor:'#000000'});svgHtml=d.querySelector('svg').outerHTML;}catch(e){}
+      document.body.removeChild(d);
+    }
     html+=`<div class="etiqueta">`;
-    html+=`<div class="eb">${ultimoSvg||''}</div>`;
+    html+=`<div class="eb">${svgHtml}</div>`;
     if(exNome)html+=`<div class="en">${nome}</div>`;
-    if(exInfo&&infoTxt)html+=`<div class="ei">${infoTxt}</div>`;
-    if(exCod)html+=`<div class="ec">${codigo}</div>`;
+    if(exInfo&&t)html+=`<div class="ei">${t}</div>`;
+    if(exCod)html+=`<div class="ec">${c}</div>`;
     html+=`</div>`;
   }
   html+='</body></html>';
   const j=window.open('','_blank','width=400,height=600');
   j.document.write(html);j.document.close();
+  // Se era sequencial, atualiza o campo serial e salva histórico com o último serial
+  if(seqSerial&&serial){
+    const ultimo=parseInt(serial)+qtd-1;
+    document.getElementById('serial').value=String(ultimo+1).padStart(serial.length,'0');
+    salvarHistorico();
+  }
   setTimeout(()=>{j.focus();j.print()},500);
 }
 
