@@ -186,6 +186,7 @@ h1{font-size:20px;margin-bottom:4px}
 // ========== PRINT PREVIEW ==========
 function mostrarPreview(){
   gerar(); // Atualiza a prévia principal primeiro
+  salvarHistorico(); // Salva todas as configurações atuais
   const larg=parseInt(document.getElementById('largura').value);
   const alt=parseInt(document.getElementById('altura').value);
   const fnome=parseInt(document.getElementById('fonteNome').value);
@@ -320,8 +321,10 @@ function moverDrag(e){
 }
 
 function pararDrag(e){
-  if(arrastando){document.getElementById(arrastando)?.classList.remove('dragging');arrastando=null;}
+  if(arrastando){document.getElementById(arrastando)?.classList.remove('dragging');arrastando=null;arrastandoChave=null;}
   if(redimensionando){document.getElementById(redimensionando)?.classList.remove('dragging');redimensionando=null;}
+  // Salva as configurações após arrastar ou redimensionar
+  salvarHistorico();
   e.preventDefault();
 }
 
@@ -471,6 +474,8 @@ function gerar(){
     JsBarcode('#codigoBarra',codigo,{format:'CODE128',width:gross,height:faltBarra,displayValue:false,margin:3,background:'#ffffff',lineColor:'#000000'});
     ultimoSvg=document.querySelector('#elemBarras svg')?.outerHTML||'';
   }catch(e){preview.innerHTML=`<div style="color:red;padding:20px">Erro: ${e.message}</div>`;}
+  // Salva configurações automaticamente sempre que algo muda
+  if(document.getElementById('fixo').value.trim()) salvarHistorico();
 }
 
 // ========== IMPRIMIR (V2 - CORRIGIDO) ==========
